@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>Clinical Narrative Builder | LinDoc</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .chip { @apply px-2.5 py-1 text-xs rounded-full border border-stone-300 bg-white text-slate-700 hover:bg-blue-50 hover:border-blue-400 cursor-pointer transition select-none shadow-2xs; }
+    .preset-btn { @apply px-3 py-1.5 text-xs font-medium rounded-lg border border-indigo-200 bg-indigo-50/70 text-indigo-900 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition shadow-sm flex items-center space-x-1.5 cursor-pointer; }
+    .unfilled-tag { background-color: #fef08a; color: #854d0e; padding: 0 4px; border-radius: 3px; font-family: monospace; font-size: 0.9em; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Top Navbar -->
+  <header class="bg-slate-900 text-white px-6 py-3 flex justify-between items-center shadow">
+    <div class="flex items-center space-x-3">
+      <span class="font-bold text-lg tracking-wide text-blue-400">LinDoc</span>
+      <span class="text-slate-400">|</span>
+      <h1 class="font-semibold text-base">Clinical Narrative Generator <span class="text-xs bg-teal-500/30 text-teal-200 px-2 py-0.5 rounded ml-2">UI Refined v2.3</span></h1>
+    </div>
+    <div class="flex space-x-2">
+      <button onclick="clearAllFields()" class="text-xs bg-rose-900/70 hover:bg-rose-700 text-rose-100 px-3 py-1.5 rounded-lg transition font-medium">清空所有欄位</button>
+    </div>
+  </header>
+
+  <!-- ID Syndrome Quick Presets Bar -->
+  <div class="bg-white border-b border-slate-200 px-6 py-2.5 shadow-sm">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center gap-2">
+      <span class="text-xs font-bold uppercase tracking-wider text-indigo-700 mr-1">⚡ ID Syndrome Presets:</span>
+      <button onclick="applySyndromePreset('nsti')" class="preset-btn"><span>Necrotizing Fasciitis</span></button>
+      <button onclick="applySyndromePreset('crypto')" class="preset-btn"><span>Cryptococcal Meningitis</span></button>
+      <button onclick="applySyndromePreset('crbsi')" class="preset-btn"><span>CRBSI / Bacteremia</span></button>
+      <button onclick="applySyndromePreset('cap')" class="preset-btn"><span>Severe CAP / Shock</span></button>
+      <button onclick="applySyndromePreset('cuti')" class="preset-btn"><span>Obstructive Urosepsis</span></button>
+      <span class="text-[11px] text-slate-400 ml-auto hidden xl:inline">* 若已輸入年齡/日期將自動保留，僅套用該病種之臨床框架</span>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-5">
+    
+    <!-- Left Column: Structured Inputs (7 cols) -->
+    <div class="lg:col-span-7 overflow-y-auto max-h-[calc(100vh-8.5rem)] space-y-6 pr-1">
+      
+      <!-- Warm Cream Container for Items 1 - 4 -->
+      <div class="bg-[#FAF7F0] border-2 border-[#E2D9C5] rounded-xl p-5 shadow-sm space-y-6">
+        
+        <!-- Item 1 -->
+        <div>
+          <div class="flex justify-between items-end border-b-[3px] border-blue-600 pb-1.5 mb-4">
+            <h2 class="text-base font-extrabold tracking-wide text-slate-900">1. Patient Profile & Baseline</h2>
+            <span class="text-[11px] font-medium text-stone-500">標註 <span class="text-rose-600 font-bold">*</span> 為核心必填，其餘留空自動省略</span>
+          </div>
+          
+          <div class="grid grid-cols-3 gap-3 mb-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Age (歲) <span class="text-rose-600">*</span></label>
+              <input type="text" data-key="age" placeholder="e.g., 73" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Sex (性別) <span class="text-rose-600">*</span></label>
+              <select data-key="sex" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="woman">woman</option>
+                <option value="man">man</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Onset Verb <span class="text-rose-600">*</span></label>
+              <select data-key="onset_verb" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="developed">developed (逐漸出現)</option>
+                <option value="sustained">sustained (遭受外傷)</option>
+                <option value="experienced">experienced (經歷發作)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Comorbidities (共病症)</label>
+              <input type="text" data-key="comorbidities" id="input-comorbidities" placeholder="e.g., type 2 diabetes mellitus, hypertension" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              <div class="flex flex-wrap gap-1.5 mt-1.5">
+                <span class="chip" onclick="appendChip('input-comorbidities', 'type 2 diabetes mellitus')">+ T2DM</span>
+                <span class="chip" onclick="appendChip('input-comorbidities', 'hypertension')">+ HTN</span>
+                <span class="chip" onclick="appendChip('input-comorbidities', 'chronic kidney disease')">+ CKD</span>
+                <span class="chip" onclick="appendChip('input-comorbidities', 'end-stage renal disease on maintenance hemodialysis')">+ ESRD on HD</span>
+                <span class="chip" onclick="appendChip('input-comorbidities', 'malignancy receiving chemotherapy')">+ Active C/T</span>
+                <span class="chip" onclick="appendChip('input-comorbidities', 'decompensated cirrhosis')">+ Cirrhosis</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Baseline Organ Function (選填)</label>
+                <input type="text" data-key="baseline_status" id="input-baseline" placeholder="e.g., preserved baseline renal function" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <div class="flex flex-wrap gap-1.5 mt-1.5">
+                  <span class="chip" onclick="setField('input-baseline', 'preserved baseline renal function')">Preserved renal</span>
+                  <span class="chip" onclick="setField('input-baseline', 'baseline CKD stage 3')">CKD stage 3</span>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Surgical / Cardiac / Device Hx (選填)</label>
+                <input type="text" data-key="surgical_hx" placeholder="e.g., tunneled cuffed catheter in place" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Item 2 -->
+        <div>
+          <div class="border-b-[3px] border-blue-600 pb-1.5 mb-4">
+            <h2 class="text-base font-extrabold tracking-wide text-slate-900">2. Pre-admission Course & Timeline</h2>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Triggering Event / Chief Complaint <span class="text-rose-600">*</span></label>
+              <input type="text" data-key="chief_complaint" placeholder="e.g., rapidly progressive erythema and severe pain" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Duration Before Admission (選填)</label>
+              <input type="text" data-key="duration" placeholder="e.g., two days / one week" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Despite Prior Care... (選填)</label>
+              <input type="text" data-key="prior_care" placeholder="e.g., outpatient oral antibiotics" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Progressive / Worsening Symptoms <span class="text-rose-600">*</span></label>
+              <input type="text" data-key="worsening_sx" placeholder="e.g., hemorrhagic bullae and high fever" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">ED / Onset Date <span class="text-rose-600">*</span></label>
+              <input type="text" data-key="ed_date" placeholder="e.g., Nov. 15, 2026" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Admission Date (選填)</label>
+              <input type="text" data-key="admit_date" placeholder="e.g., Nov. 16, 2026" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Initial Working Dx (選填)</label>
+              <input type="text" data-key="working_dx" placeholder="e.g., necrotizing soft tissue infection" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- Item 3 -->
+        <div>
+          <div class="border-b-[3px] border-blue-600 pb-1.5 mb-4">
+            <h2 class="text-base font-extrabold tracking-wide text-slate-900">3. Initial Evaluation & Pertinent Negatives</h2>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Key Lab Findings (選填)</label>
+              <input type="text" data-key="lab_findings" placeholder="e.g., marked leukocytosis, bandemia, and lactic acidosis" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Organ Dysfunction / Severity (選填)</label>
+              <input type="text" data-key="organ_dysfunction" placeholder="e.g., acute kidney injury" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Imaging Modality (選填)</label>
+              <input type="text" data-key="imaging_modality" placeholder="e.g., contrast-enhanced CT" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Imaging Findings (選填)</label>
+              <input type="text" data-key="imaging_findings" placeholder="e.g., deep fascial thickening and subcutaneous gas" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Clinical Stability (選填)</label>
+              <input type="text" data-key="stability_status" id="input-stability" placeholder="e.g., alert and hemodynamically stable" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              <div class="flex flex-wrap gap-1.5 mt-1.5">
+                <span class="chip" onclick="setField('input-stability', 'alert and hemodynamically stable')">Alert & HD stable</span>
+                <span class="chip" onclick="setField('input-stability', 'hypotensive requiring vasopressor support')">Septic shock (on pressors)</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Pertinent Negatives (選填)</label>
+              <input type="text" data-key="pertinent_negatives" id="input-negatives" placeholder="e.g., clinical heart failure or active bleeding" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              <div class="flex flex-wrap gap-1.5 mt-1.5">
+                <span class="chip" onclick="appendChip('input-negatives', 'clinical heart failure')">+ No HF</span>
+                <span class="chip" onclick="appendChip('input-negatives', 'obvious active bleeding')">+ No bleeding</span>
+                <span class="chip" onclick="appendChip('input-negatives', 'meningeal signs')">+ No meningeal signs</span>
+                <span class="chip" onclick="appendChip('input-negatives', 'peripheral stigmata of endocarditis')">+ No IE stigmata</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Item 4 -->
+        <div>
+          <div class="border-b-[3px] border-blue-600 pb-1.5 mb-4">
+            <h2 class="text-base font-extrabold tracking-wide text-slate-900">4. Interventions, Microbiology & Disposition</h2>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Consulted Team (選填)</label>
+              <input type="text" data-key="consult_team" placeholder="e.g., Plastic Surgery / Neurosurgery" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Decision / Key Procedure (選填)</label>
+              <input type="text" data-key="decision_intervention" placeholder="e.g., emergent surgical debridement was performed" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Specimen Type (選填)</label>
+              <input type="text" data-key="specimen" placeholder="e.g., blood and deep tissue cultures" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Result Date (選填)</label>
+              <input type="text" data-key="micro_date" placeholder="e.g., Nov. 17, 2026" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Pathogen / Key Result (選填)</label>
+              <input type="text" data-key="pathogen" placeholder="e.g., Vibrio vulnificus / MRSA" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Confirmed Diagnosis (選填)</label>
+              <input type="text" data-key="final_dx" placeholder="e.g., necrotizing fasciitis" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Destination Service (選填)</label>
+              <input type="text" data-key="dest_service" value="Infectious Diseases" class="form-input w-full border border-stone-300 bg-white rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <!-- End of Warm Cream Container for Items 1 - 4 -->
+
+      <!-- Section 5: Distinct Antimicrobial Stewardship Module -->
+      <div class="bg-teal-50 border-2 border-teal-300 rounded-xl p-5 shadow-sm">
+        <div class="flex justify-between items-center border-b-[3px] border-teal-600 pb-2 mb-4">
+          <label class="flex items-center space-x-2.5 cursor-pointer select-none">
+            <input type="checkbox" id="toggle-abx-module" checked onchange="toggleAbxSection()" class="w-4 h-4 text-teal-600 rounded border-teal-400 focus:ring-teal-500">
+            <span class="text-base font-extrabold tracking-wide text-teal-950">5. Antimicrobial Stewardship & Adjustment (Optional Paragraph)</span>
+          </label>
+          <span class="text-[11px] bg-teal-600 text-white px-2 py-0.5 rounded font-medium">獨立抗生素段落</span>
+        </div>
+
+        <div id="abx-fields-container" class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-teal-900 mb-1">Empiric Regimen Initiated (經驗性抗生素處方)</label>
+            <input type="text" data-key="abx_empiric" id="input-abx-empiric" placeholder="e.g., intravenous piperacillin-tazobactam plus vancomycin" class="form-input w-full border border-teal-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+            <div class="flex flex-wrap gap-1.5 mt-1.5">
+              <span class="chip" onclick="setField('input-abx-empiric', 'intravenous piperacillin-tazobactam plus vancomycin')">Pip-Tazo + Vanco</span>
+              <span class="chip" onclick="setField('input-abx-empiric', 'intravenous meropenem plus vancomycin')">Meropenem + Vanco</span>
+              <span class="chip" onclick="setField('input-abx-empiric', 'intravenous ceftriaxone plus azithromycin')">Ceftriaxone + Azithro</span>
+              <span class="chip" onclick="setField('input-abx-empiric', 'intravenous cefazolin')">Cefazolin</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-teal-900 mb-1">Susceptibility / Resistance Profile (藥敏結果)</label>
+              <input type="text" data-key="abx_susceptibility" id="input-abx-susc" placeholder="e.g., susceptibility to oxacillin and cefazolin" class="form-input w-full border border-teal-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+              <div class="flex flex-wrap gap-1.5 mt-1.5">
+                <span class="chip" onclick="setField('input-abx-susc', 'susceptibility to oxacillin and cefazolin')">MSSA (Cefazolin-S)</span>
+                <span class="chip" onclick="setField('input-abx-susc', 'susceptibility to vancomycin (MIC 1 mcg/mL) and daptomycin')">MRSA (Vanco MIC 1)</span>
+                <span class="chip" onclick="setField('input-abx-susc', 'ESBL production with preserved carbapenem susceptibility')">ESBL (Carbapenem-S)</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-teal-900 mb-1">Adjustment Action (調整方向)</label>
+              <select data-key="abx_action" class="form-input w-full border border-teal-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+                <option value="de-escalated to">de-escalated to (降階為)</option>
+                <option value="escalated to">escalated to (升階為)</option>
+                <option value="streamlined to">streamlined to (精簡調整為)</option>
+                <option value="maintained on">maintained on (維持原處方)</option>
+                <option value="transitioned to oral step-down therapy with">transitioned to oral step-down therapy with (轉口服降階為)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-teal-900 mb-1">Targeted / Definitive Regimen (目標性處方)</label>
+              <input type="text" data-key="abx_targeted" id="input-abx-targeted" placeholder="e.g., targeted intravenous cefazolin monotherapy" class="form-input w-full border border-teal-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+              <div class="flex flex-wrap gap-1.5 mt-1.5">
+                <span class="chip" onclick="setField('input-abx-targeted', 'targeted intravenous cefazolin monotherapy')">IV Cefazolin</span>
+                <span class="chip" onclick="setField('input-abx-targeted', 'targeted intravenous daptomycin')">IV Daptomycin</span>
+                <span class="chip" onclick="setField('input-abx-targeted', 'ertapenem for outpatient parenteral therapy')">Ertapenem</span>
+                <span class="chip" onclick="setField('input-abx-targeted', 'oral levofloxacin')">PO Levofloxacin</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-teal-900 mb-1">Clinical Response / Planned Duration (追蹤與療程，選填)</label>
+              <input type="text" data-key="abx_outcome" id="input-abx-outcome" placeholder="e.g., subsequent blood cultures cleared with a planned 14-day course" class="form-input w-full border border-teal-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+              <div class="flex flex-wrap gap-1.5 mt-1.5">
+                <span class="chip" onclick="setField('input-abx-outcome', 'follow-up blood cultures demonstrated clearance of bacteremia')">BC cleared</span>
+                <span class="chip" onclick="setField('input-abx-outcome', 'defervescence and down-trending inflammatory markers were achieved')">Afebrile & CRP ↓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column (5 cols) -->
+    <div class="lg:col-span-5 flex flex-col space-y-4">
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <div class="flex justify-between items-center mb-2">
+          <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Select Writing Style</label>
+          <span id="env-badge" class="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-500">Loading...</span>
+        </div>
+        <div id="style-buttons" class="grid grid-cols-1 gap-2"></div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex-1 flex flex-col">
+        <div class="flex justify-between items-center border-b pb-3 mb-3">
+          <div>
+            <h3 class="font-bold text-slate-800 text-sm">Generated Medical Narrative</h3>
+            <p id="style-desc" class="text-xs text-slate-500 mt-0.5">點擊上方病種預設包可快速填入典型臨床骨架</p>
+          </div>
+          <button onclick="copyPlainText()" id="copy-btn" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-4 py-2 rounded-lg shadow-sm transition flex items-center space-x-1">
+            <span>複製純文字</span>
+          </button>
+        </div>
+
+        <div id="preview-box" class="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap font-serif overflow-y-auto min-h-[260px]"></div>
+        
+        <div class="mt-3 pt-2 border-t flex justify-between items-center text-xs text-slate-500">
+          <span>* 僅核心必填欄位未填時顯示黃底提示</span>
+          <span id="word-count">0 words</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let templates = [];
+    let currentTemplateId = 'standard';
+    let renderMode = 'html';
+
+    const SYNDROME_PRESETS = {
+      nsti: {
+        age: '68', sex: 'man', onset_verb: 'developed',
+        comorbidities: 'type 2 diabetes mellitus and alcoholic liver cirrhosis',
+        baseline_status: 'preserved baseline renal function',
+        surgical_hx: '',
+        chief_complaint: 'rapidly progressive erythema, swelling, and severe pain of the left lower extremity',
+        duration: 'two days', prior_care: 'local topical treatment',
+        worsening_sx: 'hemorrhagic bullae formation and high fever',
+        ed_date: 'Nov. 14, 2026', admit_date: 'Nov. 14, 2026',
+        working_dx: 'suspected necrotizing soft tissue infection',
+        lab_findings: 'leukocytosis with bandemia, elevated CRP, and lactic acidosis',
+        organ_dysfunction: 'acute kidney injury',
+        imaging_modality: 'contrast-enhanced CT',
+        imaging_findings: 'diffuse fascial thickening, fluid tracking along deep fascial planes, and subcutaneous emphysema',
+        stability_status: 'hypotensive requiring initial fluid resuscitation',
+        pertinent_negatives: 'overt active bleeding',
+        consult_team: 'Plastic Surgery',
+        decision_intervention: 'emergent surgical fasciotomy and debridement were performed',
+        specimen: 'intraoperative deep tissue and blood cultures',
+        micro_date: 'Nov. 16, 2026',
+        pathogen: 'Vibrio vulnificus',
+        final_dx: 'necrotizing fasciitis',
+        dest_service: 'Infectious Diseases',
+        abx_empiric: 'intravenous piperacillin-tazobactam plus vancomycin and clindamycin',
+        abx_susceptibility: 'susceptibility to third-generation cephalosporins and tetracyclines',
+        abx_action: 'de-escalated to',
+        abx_targeted: 'intravenous ceftriaxone plus doxycycline',
+        abx_outcome: 'progressive wound granulation and defervescence were achieved'
+      },
+      crypto: {
+        age: '65', sex: 'man', onset_verb: 'developed',
+        comorbidities: 'malignancy receiving chemotherapy',
+        baseline_status: 'preserved baseline renal function',
+        surgical_hx: '',
+        chief_complaint: 'progressive headache, lower-extremity weakness, and cognitive decline',
+        duration: 'two weeks', prior_care: 'outpatient symptomatic management',
+        worsening_sx: 'worsening lethargy and unsteady gait',
+        ed_date: 'Nov. 10, 2026', admit_date: 'Nov. 11, 2026',
+        working_dx: 'subacute meningitis and hydrocephalus evaluation',
+        lab_findings: 'lymphocytic CSF pleocytosis, elevated CSF protein, and hypoglycorrhachia',
+        organ_dysfunction: 'altered mental status',
+        imaging_modality: 'brain CT and MRI',
+        imaging_findings: 'communicating hydrocephalus with leptomeningeal enhancement',
+        stability_status: 'hemodynamically stable',
+        pertinent_negatives: 'acute intracranial hemorrhage or mass effect',
+        consult_team: 'Neurosurgery',
+        decision_intervention: 'lumbar drainage was established for intracranial pressure control',
+        specimen: 'CSF fungal culture and cryptococcal antigen testing',
+        micro_date: 'Nov. 13, 2026',
+        pathogen: 'Cryptococcus gattii (CSF CrAg titer >1:10,240)',
+        final_dx: 'cryptococcal meningitis',
+        dest_service: 'Infectious Diseases',
+        abx_empiric: 'empiric intravenous ceftriaxone, vancomycin, and acyclovir',
+        abx_susceptibility: 'confirmed cryptococcal antigen positivity without bacterial growth',
+        abx_action: 'transitioned to',
+        abx_targeted: 'induction antifungal therapy with liposomal amphotericin B plus flucytosine',
+        abx_outcome: 'follow-up CSF opening pressure normalized and cultures sterilized'
+      },
+      crbsi: {
+        age: '71', sex: 'woman', onset_verb: 'experienced',
+        comorbidities: 'end-stage renal disease on maintenance hemodialysis',
+        baseline_status: 'anuric baseline status',
+        surgical_hx: 'right internal jugular tunneled cuffed catheter in place',
+        chief_complaint: 'intradialytic rigors and high fever',
+        duration: '24 hours', prior_care: 'empiric single-dose vancomycin at the dialysis center',
+        worsening_sx: 'persistent bacteremia and catheter exit-site erythema',
+        ed_date: 'Nov. 12, 2026', admit_date: 'Nov. 12, 2026',
+        working_dx: 'catheter-related bloodstream infection (CRBSI)',
+        lab_findings: 'marked leukocytosis and elevated procalcitonin',
+        organ_dysfunction: 'transient intradialytic hypotension',
+        imaging_modality: 'transthoracic echocardiography',
+        imaging_findings: 'no obvious mobile valvular vegetations',
+        stability_status: 'alert and hemodynamically stable post-resuscitation',
+        pertinent_negatives: 'peripheral stigmata of infective endocarditis or metastatic abscess',
+        consult_team: 'Vascular Surgery',
+        decision_intervention: 'prompt tunneled catheter removal was performed',
+        specimen: 'paired peripheral and catheter-hub blood cultures',
+        micro_date: 'Nov. 14, 2026',
+        pathogen: 'methicillin-resistant Staphylococcus aureus (differential time to positivity >2 hours)',
+        final_dx: 'Staphylococcus aureus catheter-related bloodstream infection',
+        dest_service: 'Infectious Diseases',
+        abx_empiric: 'intravenous vancomycin plus cefepime',
+        abx_susceptibility: 'susceptibility to vancomycin (MIC 1 mcg/mL) and daptomycin',
+        abx_action: 'streamlined to',
+        abx_targeted: 'intravenous daptomycin administered post-dialysis',
+        abx_outcome: 'follow-up blood cultures at 48 hours demonstrated clearance of bacteremia'
+      },
+      cap: {
+        age: '78', sex: 'man', onset_verb: 'developed',
+        comorbidities: 'chronic obstructive pulmonary disease and hypertension',
+        baseline_status: 'preserved baseline renal function',
+        surgical_hx: '',
+        chief_complaint: 'productive cough, pleuritic chest pain, and progressive dyspnea',
+        duration: 'three days', prior_care: 'oral amoxicillin-clavulanate',
+        worsening_sx: 'acute hypoxemic respiratory failure and confusion',
+        ed_date: 'Nov. 13, 2026', admit_date: 'Nov. 13, 2026',
+        working_dx: 'severe community-acquired pneumonia with septic shock',
+        lab_findings: 'leukocytosis, elevated lactate, and severe hypoxemia',
+        organ_dysfunction: 'acute kidney injury and septic shock',
+        imaging_modality: 'chest CT',
+        imaging_findings: 'dense right lower lobe consolidation with parapneumonic effusion',
+        stability_status: 'hypotensive requiring norepinephrine infusion and high-flow nasal cannula',
+        pertinent_negatives: 'acute pulmonary embolism or decompensated heart failure',
+        consult_team: 'Critical Care',
+        decision_intervention: 'hemodynamic resuscitation and non-invasive ventilatory support were initiated',
+        specimen: 'blood cultures and urinary antigen testing',
+        micro_date: 'Nov. 15, 2026',
+        pathogen: 'Streptococcus pneumoniae',
+        final_dx: 'bacteremic pneumococcal pneumonia',
+        dest_service: 'Infectious Diseases',
+        abx_empiric: 'intravenous ceftriaxone plus azithromycin',
+        abx_susceptibility: 'penicillin and ceftriaxone susceptibility',
+        abx_action: 'de-escalated to',
+        abx_targeted: 'intravenous ceftriaxone monotherapy',
+        abx_outcome: 'vasopressors were successfully weaned and oxygenation improved'
+      },
+      cuti: {
+        age: '75', sex: 'woman', onset_verb: 'developed',
+        comorbidities: 'type 2 diabetes mellitus and recurrent nephrolithiasis',
+        baseline_status: 'baseline CKD stage 3',
+        surgical_hx: '',
+        chief_complaint: 'right flank pain, dysuria, and shaking chills',
+        duration: 'three days', prior_care: 'oral cephalexin',
+        worsening_sx: 'persistent spiking fever and hemodynamic instability',
+        ed_date: 'Nov. 14, 2026', admit_date: 'Nov. 14, 2026',
+        working_dx: 'complicated pyelonephritis and urosepsis',
+        lab_findings: 'pyuria, leukocytosis, and marked CRP elevation',
+        organ_dysfunction: 'acute-on-chronic renal failure',
+        imaging_modality: 'non-contrast abdominal CT',
+        imaging_findings: 'right proximal ureteral stone causing moderate hydronephrosis and perinephric stranding',
+        stability_status: 'hemodynamically stabilized following fluid resuscitation',
+        pertinent_negatives: 'emphysematous pyelonephritis or renal abscess',
+        consult_team: 'Urology',
+        decision_intervention: 'emergent percutaneous nephrostomy (PCN) decompression was performed',
+        specimen: 'blood and urine cultures',
+        micro_date: 'Nov. 16, 2026',
+        pathogen: 'extended-spectrum beta-lactamase (ESBL)-producing Escherichia coli',
+        final_dx: 'obstructive urosepsis due to ESBL-producing E. coli',
+        dest_service: 'Infectious Diseases',
+        abx_empiric: 'intravenous cefepime',
+        abx_susceptibility: 'ESBL production with preserved carbapenem susceptibility',
+        abx_action: 'escalated to',
+        abx_targeted: 'intravenous ertapenem',
+        abx_outcome: 'defervescence and recovery of renal function to baseline were observed'
+      }
+    };
+
+    const SMART_TEMPLATES = [
+      {
+        id: 'standard',
+        name: '1. 標準精煉型 (Standard)',
+        description: '日常病房 Admission / 交班基準版',
+        build: (v) => {
+          const p1_intro = `A ${req(v, 'age')}-year-old ${req(v, 'sex')}${v.history_list ? ` with a history of ${v.history_list}` : ''} ${req(v, 'onset_verb')} ${req(v, 'chief_complaint')}${v.duration ? ` approximately ${v.duration} before admission` : ''}.`;
+          const p1_course = `${v.prior_care ? `Despite ${v.prior_care}, progressive ` : 'Progressive '}${req(v, 'worsening_sx')} prompted ED presentation on ${req(v, 'ed_date')}${v.admit_date ? `, followed by ward admission on ${v.admit_date}${v.working_dx ? ` for ${v.working_dx}` : ''}` : ''}.`;
+          
+          const p2_parts = [];
+          if (v.eval_list) p2_parts.push(`Initial evaluation demonstrated ${v.eval_list}.`);
+          if (v.imaging_modality && v.imaging_findings) p2_parts.push(`Imaging with ${v.imaging_modality} revealed ${v.imaging_findings}.`);
+          if (v.stability_status || v.pertinent_negatives) {
+            if (v.stability_status && v.pertinent_negatives) {
+              p2_parts.push(`The patient remained ${v.stability_status} without clinical signs of ${v.pertinent_negatives}.`);
+            } else if (v.stability_status) {
+              p2_parts.push(`The patient remained ${v.stability_status}.`);
+            } else {
+              p2_parts.push(`There were no clinical signs of ${v.pertinent_negatives}.`);
+            }
+          }
+          if (v.decision_intervention) {
+            const prefix = v.consult_team ? `Following discussion with the ${v.consult_team} team, ` : '';
+            p2_parts.push(`${prefix}${capitalizeFirst(v.decision_intervention, !prefix)}.`);
+          }
+          if (v.micro_sentence_standard) p2_parts.push(v.micro_sentence_standard);
+
+          return [ `${p1_intro} ${p1_course}`, p2_parts.join(' '), v.abx_paragraph_standard ].filter(Boolean).join('\n\n');
+        }
+      },
+      {
+        id: 'academic',
+        name: '2. 高密度專科術語型 (Academic)',
+        description: '感染症/重症會診、學術病例報告版',
+        build: (v) => {
+          const p1_intro = `A ${req(v, 'age')}-year-old ${req(v, 'sex')}${v.history_list ? ` with underlying ${v.history_list}` : ''} experienced subacute onset of ${req(v, 'chief_complaint')}${v.duration ? ` over the preceding ${v.duration} prior to presentation` : ''}.`;
+          const p1_course = `${v.prior_care ? `Refractory to ${v.prior_care}, clinical ` : 'Clinical '}deterioration characterized by ${req(v, 'worsening_sx')} necessitated emergency department evaluation on ${req(v, 'ed_date')}.`;
+
+          const p2_parts = [];
+          if (v.lab_findings && v.organ_dysfunction) {
+            p2_parts.push(`Initial diagnostic workup was remarkable for ${v.lab_findings} concomitant with ${v.organ_dysfunction}.`);
+          } else if (v.eval_list) {
+            p2_parts.push(`Initial diagnostic workup was remarkable for ${v.eval_list}.`);
+          }
+          if (v.imaging_modality && v.imaging_findings) {
+            p2_parts.push(`Cross-sectional imaging via ${v.imaging_modality} delineated ${v.imaging_findings}.`);
+          }
+          if (v.stability_status || v.pertinent_negatives) {
+            if (v.stability_status && v.pertinent_negatives) {
+              p2_parts.push(`Hemodynamically, the patient was ${v.stability_status} with pertinent negatives including absence of ${v.pertinent_negatives}.`);
+            } else if (v.stability_status) {
+              p2_parts.push(`Hemodynamically, the patient was ${v.stability_status}.`);
+            } else {
+              p2_parts.push(`Pertinent negatives included absence of ${v.pertinent_negatives}.`);
+            }
+          }
+          if (v.decision_intervention) {
+            const prefix = v.consult_team ? `In consultation with ${v.consult_team}, a consensus was reached wherein ` : '';
+            p2_parts.push(`${prefix}${capitalizeFirst(v.decision_intervention, !prefix)}.`);
+          }
+          if (v.micro_sentence_academic) p2_parts.push(v.micro_sentence_academic);
+
+          return [ `${p1_intro} ${p1_course}`, p2_parts.join(' '), v.abx_paragraph_academic ].filter(Boolean).join('\n\n');
+        }
+      },
+      {
+        id: 'telegraphic',
+        name: '3. 極簡電報式摘要 (Telegraphic)',
+        description: '急診快速收治 / SBAR 床邊交班版',
+        build: (v) => {
+          const p1 = `${req(v, 'age')}-year-old ${req(v, 'sex')}${v.history_list ? ` with ${v.history_list}` : ''} presented on ${req(v, 'ed_date')} with ${v.duration ? `${v.duration} of ` : ''}${req(v, 'chief_complaint')}${v.prior_care ? ` refractory to ${v.prior_care}` : ''} (${req(v, 'worsening_sx')}).`;
+          
+          const edItems = [];
+          if (v.eval_list) edItems.push(v.eval_list);
+          if (v.imaging_modality && v.imaging_findings) edItems.push(`${v.imaging_modality} revealing ${v.imaging_findings}`);
+          
+          const p2_parts = [];
+          if (edItems.length || v.stability_status || v.pertinent_negatives) {
+            let line = edItems.length ? `ED workup showed ${formatOxfordList(edItems)}` : 'On evaluation';
+            if (v.stability_status || v.pertinent_negatives) {
+              const stab = [v.stability_status, v.pertinent_negatives ? `without ${v.pertinent_negatives}` : ''].filter(Boolean).join(' ');
+              line += `; ${stab}`;
+            }
+            p2_parts.push(line + '.');
+          }
+          if (v.decision_intervention) {
+            const prefix = v.consult_team ? `Following ${v.consult_team} consultation, ` : '';
+            p2_parts.push(`${prefix}${capitalizeFirst(v.decision_intervention, !prefix)}.`);
+          }
+          if (v.micro_sentence_telegraphic) p2_parts.push(v.micro_sentence_telegraphic);
+
+          return [ p1, p2_parts.join(' '), v.abx_paragraph_telegraphic ].filter(Boolean).join('\n\n');
+        }
+      },
+      {
+        id: 'narrative',
+        name: '4. 敘事文學修辭型 (Narrative)',
+        description: 'Grand Rounds 病例開場 / 人文病歷版',
+        build: (v) => {
+          const bg = v.history_list ? ` whose medical background was already shadowed by ${v.history_list},` : ',';
+          const p1_intro = `For a ${req(v, 'age')}-year-old ${req(v, 'sex')}${bg} the onset of ${req(v, 'chief_complaint')}${v.duration ? ` roughly ${v.duration} before admission` : ''} marked the beginning of a steady clinical decline.`;
+          const p1_course = `${v.prior_care ? `Though ${v.prior_care} was attempted, worsening ` : 'Worsening '}${req(v, 'worsening_sx')} finally drove the patient to the emergency department on ${req(v, 'ed_date')}.`;
+
+          const p2_parts = [];
+          if (v.eval_list && v.imaging_modality && v.imaging_findings) {
+            p2_parts.push(`Upon arrival, laboratory studies uncovered ${v.eval_list}, while ${v.imaging_modality} exposed ${v.imaging_findings}.`);
+          } else if (v.eval_list) {
+            p2_parts.push(`Upon arrival, laboratory studies uncovered ${v.eval_list}.`);
+          } else if (v.imaging_modality && v.imaging_findings) {
+            p2_parts.push(`Upon arrival, ${v.imaging_modality} exposed ${v.imaging_findings}.`);
+          }
+          if (v.stability_status || v.pertinent_negatives) {
+            if (v.stability_status && v.pertinent_negatives) {
+              p2_parts.push(`Yet amidst these derangements, the patient remained ${v.stability_status}, spared from ${v.pertinent_negatives}.`);
+            } else if (v.stability_status) {
+              p2_parts.push(`Throughout the initial crisis, the patient remained ${v.stability_status}.`);
+            }
+          }
+          if (v.decision_intervention) {
+            const prefix = v.consult_team ? `Weighing the risks with the ${v.consult_team} team, ` : 'Weighing the clinical risks, ';
+            p2_parts.push(`${prefix}${v.decision_intervention}.`);
+          }
+          if (v.micro_sentence_narrative) p2_parts.push(v.micro_sentence_narrative);
+
+          return [ `${p1_intro} ${p1_course}`, p2_parts.join(' '), v.abx_paragraph_narrative ].filter(Boolean).join('\n\n');
+        }
+      },
+      {
+        id: 'plain',
+        name: '5. 通俗平實跨科溝通型 (Plain)',
+        description: '跨職類團隊 / 家屬病情摘要版',
+        build: (v) => {
+          const p1_intro = `This is a ${req(v, 'age')}-year-old ${req(v, 'sex')}${v.history_list ? ` with a history of ${v.history_list}` : ''}. ${v.duration ? `About ${v.duration} before coming to the hospital, the` : 'The'} patient developed ${req(v, 'chief_complaint')}.`;
+          const p1_course = `${v.prior_care ? `Even though the patient received ${v.prior_care}, the ` : 'The '}${req(v, 'worsening_sx')} continued to get worse, leading to an emergency room visit on ${req(v, 'ed_date')}${v.admit_date ? ` and hospital admission on ${v.admit_date}${v.working_dx ? ` for ${v.working_dx}` : ''}` : ''}.`;
+
+          const p2_parts = [];
+          if (v.eval_list) p2_parts.push(`Early hospital tests showed ${v.eval_list}.`);
+          if (v.imaging_modality && v.imaging_findings) p2_parts.push(`A ${v.imaging_modality} showed ${v.imaging_findings}.`);
+          if (v.stability_status || v.pertinent_negatives) {
+            const stab = [v.stability_status, v.pertinent_negatives ? `showed no signs of ${v.pertinent_negatives}` : ''].filter(Boolean).join(' and ');
+            p2_parts.push(`At that time, the patient was ${stab}.`);
+          }
+          if (v.decision_intervention) {
+            const prefix = v.consult_team ? `After talking with the ${v.consult_team} doctors, ` : '';
+            p2_parts.push(`${prefix}${capitalizeFirst(v.decision_intervention, !prefix)}.`);
+          }
+          if (v.micro_sentence_plain) p2_parts.push(v.micro_sentence_plain);
+
+          return [ `${p1_intro} ${p1_course}`, p2_parts.join(' '), v.abx_paragraph_plain ].filter(Boolean).join('\n\n');
+        }
+      }
+    ];
+
+    function req(v, key) {
+      if (v[key]) {
+        return renderMode === 'html' ? `<span class="text-slate-900 font-medium">${escapeHtml(v[key])}</span>` : v[key];
+      }
+      return renderMode === 'html' ? `<span class="unfilled-tag">[${key}]</span>` : `_____`;
+    }
+
+    function formatOxfordList(items) {
+      const clean = items.filter(Boolean);
+      if (clean.length === 0) return '';
+      if (clean.length === 1) return clean[0];
+      if (clean.length === 2) return `${clean[0]} and ${clean[1]}`;
+      return `${clean.slice(0, -1).join(', ')}, and ${clean[clean.length - 1]}`;
+    }
+
+    function capitalizeFirst(str, shouldCap) {
+      if (!shouldCap || !str) return str;
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    function buildSemanticContext(raw) {
+      const wrap = (val) => val ? (renderMode === 'html' ? `<span class="text-slate-900 font-medium">${escapeHtml(val)}</span>` : val) : '';
+      const v = {};
+      Object.keys(raw).forEach(k => {
+        if (['age', 'sex', 'onset_verb', 'chief_complaint', 'worsening_sx', 'ed_date'].includes(k)) {
+          v[k] = raw[k];
+        } else {
+          v[k] = wrap(raw[k]);
+        }
+      });
+
+      v.history_list = formatOxfordList([v.comorbidities, v.baseline_status, v.surgical_hx]);
+      v.eval_list = formatOxfordList([v.lab_findings, v.organ_dysfunction]);
+
+      // Microbiology & Disposition
+      const hasMicro = raw.specimen || raw.pathogen;
+      const hasDispo = raw.final_dx || raw.dest_service;
+
+      if (hasMicro || hasDispo) {
+        const spec = v.specimen || 'Follow-up microbiological testing';
+        const mDate = v.micro_date ? ` obtained on ${v.micro_date}` : '';
+        const patho = v.pathogen ? ` detected ${v.pathogen}` : '';
+        const dxClause = v.final_dx ? `, confirming ${v.final_dx}` : '';
+        const destClause = v.dest_service ? ` and prompting transfer to the ${v.dest_service} service for specialized management` : '';
+        const destClauseShort = v.dest_service ? `; transferred to ${v.dest_service}${v.admit_date ? ` on ${v.admit_date}` : ''}` : '';
+
+        if (hasMicro) {
+          v.micro_sentence_standard = `${capitalizeFirst(spec, true)}${mDate}${patho}${dxClause}${destClause}.`;
+          v.micro_sentence_academic = `Subsequent microbiological surveillance of ${v.specimen || 'clinical specimens'}${v.micro_date ? ` collected on ${v.micro_date}` : ''}${v.pathogen ? ` yielded ${v.pathogen}` : ''}${v.final_dx ? `, substantiating the diagnosis of ${v.final_dx}` : ''}${v.dest_service ? ` and warranting admission to the ${v.dest_service} service for definitive antimicrobial stewardship` : ''}.`;
+          v.micro_sentence_telegraphic = `${capitalizeFirst(v.specimen || 'Micro', true)}${v.micro_date ? ` (${v.micro_date})` : ''}${v.pathogen ? ` yielded ${v.pathogen}` : ''}${dxClause}${destClauseShort}.`;
+          v.micro_sentence_narrative = `The decisive clue emerged${v.micro_date ? ` on ${v.micro_date}` : ''}, when ${v.specimen || 'diagnostic testing'}${v.pathogen ? ` revealed ${v.pathogen}` : ''}${v.final_dx ? `—unmasking ${v.final_dx}` : ''}${v.dest_service ? ` and leading to transfer to the ${v.dest_service} service` : ''}.`;
+          v.micro_sentence_plain = `Later test results${v.micro_date ? ` from ${v.micro_date}` : ''}${v.pathogen ? ` found ${v.pathogen}` : ''}${v.specimen ? ` in the ${v.specimen}` : ''}${dxClause}.${v.dest_service ? ` The patient was then moved to the ${v.dest_service} team for focused treatment.` : ''}`;
+        } else {
+          v.micro_sentence_standard = `The clinical findings confirmed ${v.final_dx || 'the diagnosis'}${destClause}.`;
+          v.micro_sentence_academic = `Overall clinical synthesis substantiated the diagnosis of ${v.final_dx || 'the condition'}${v.dest_service ? `, warranting transfer to the ${v.dest_service} service` : ''}.`;
+          v.micro_sentence_telegraphic = `Confirmed ${v.final_dx || 'diagnosis'}${destClauseShort}.`;
+          v.micro_sentence_narrative = `Ultimately, the clinical picture confirmed ${v.final_dx || 'the diagnosis'}${v.dest_service ? `, leading to transfer to the ${v.dest_service} service` : ''}.`;
+          v.micro_sentence_plain = `Based on these findings, the doctors confirmed ${v.final_dx || 'the diagnosis'}.${v.dest_service ? ` The patient was then moved to the ${v.dest_service} team for focused treatment.` : ''}`;
+        }
+      }
+
+      // Module 5: Antimicrobial Stewardship Paragraph (if enabled)
+      const abxEnabled = document.getElementById('toggle-abx-module').checked;
+      if (abxEnabled && (raw.abx_empiric || raw.abx_targeted || raw.abx_susceptibility)) {
+        const emp = v.abx_empiric;
+        const susc = v.abx_susceptibility;
+        const act = v.abx_action || 'de-escalated to';
+        const targ = v.abx_targeted;
+        const out = v.abx_outcome;
+
+        // 1. Standard
+        const stdParts = [];
+        if (emp) stdParts.push(`Empiric antimicrobial therapy was initially commenced with ${emp}.`);
+        if (targ) {
+          const suscLead = susc ? `Following availability of susceptibility results demonstrating ${susc}, the regimen was ` : 'Based on microbiological findings, the regimen was ';
+          stdParts.push(`${suscLead}${act} ${targ}.`);
+        } else if (susc) {
+          stdParts.push(`Antimicrobial susceptibility testing demonstrated ${susc}.`);
+        }
+        if (out) stdParts.push(`Clinically, ${out}.`);
+        v.abx_paragraph_standard = stdParts.join(' ');
+
+        // 2. Academic
+        const acadParts = [];
+        if (emp) acadParts.push(`Initial empiric broad-spectrum coverage was instituted with ${emp}.`);
+        if (targ) {
+          const suscLead = susc ? `Guided by antimicrobial susceptibility profiles revealing ${susc}, therapy was judiciously ` : 'In accordance with antimicrobial stewardship principles, therapy was ';
+          acadParts.push(`${suscLead}${act} ${targ}.`);
+        } else if (susc) {
+          acadParts.push(`Susceptibility profiling delineated ${susc}.`);
+        }
+        if (out) acadParts.push(`Subsequent clinical trajectory was favorable, as ${out}.`);
+        v.abx_paragraph_academic = acadParts.join(' ');
+
+        // 3. Telegraphic
+        const teleParts = [];
+        if (emp) teleParts.push(`Empiric Abx: ${emp}.`);
+        if (susc || targ) {
+          const mid = [susc ? `Susceptibility: ${susc}` : '', targ ? `Abx ${act} ${targ}` : ''].filter(Boolean).join('; ');
+          teleParts.push(mid + '.');
+        }
+        if (out) teleParts.push(`Course: ${out}.`);
+        v.abx_paragraph_telegraphic = teleParts.join(' ');
+
+        // 4. Narrative
+        const narParts = [];
+        if (emp) narParts.push(`To contain the infection early, clinicians initiated empiric treatment with ${emp}.`);
+        if (targ) {
+          const suscLead = susc ? `Once susceptibility testing revealed ${susc}, the regimen was carefully ` : 'As the microbiological picture sharpened, therapy was ';
+          narParts.push(`${suscLead}${act} ${targ}.`);
+        }
+        if (out) narParts.push(`Under this targeted approach, ${out}.`);
+        v.abx_paragraph_narrative = narParts.join(' ');
+
+        // 5. Plain
+        const plainParts = [];
+        if (emp) plainParts.push(`At first, the patient was started on broad-coverage antibiotics (${emp}) to control the infection.`);
+        if (targ) {
+          const suscLead = susc ? `Once lab testing showed ${susc}, the antibiotics were adjusted (${act} ${targ}) to target the exact germ.` : `The antibiotics were later adjusted (${act} ${targ}).`;
+          plainParts.push(suscLead);
+        }
+        if (out) plainParts.push(`With this treatment, ${out}.`);
+        v.abx_paragraph_plain = plainParts.join(' ');
+      }
+
+      return v;
+    }
+
+    function toggleAbxSection() {
+      const checked = document.getElementById('toggle-abx-module').checked;
+      const container = document.getElementById('abx-fields-container');
+      container.style.opacity = checked ? '1' : '0.45';
+      container.style.pointerEvents = checked ? 'auto' : 'none';
+      renderPreview();
+    }
+
+    window.onload = function() {
+      templates = SMART_TEMPLATES;
+      document.getElementById('env-badge').textContent = (typeof google !== 'undefined' && google.script) ? 'GAS Cloud Ready' : 'Local Sandbox Ready';
+      renderStyleButtons();
+      renderPreview();
+
+      document.querySelectorAll('.form-input').forEach(el => {
+        el.addEventListener('input', renderPreview);
+        el.addEventListener('change', renderPreview);
+      });
+    };
+
+    function renderStyleButtons() {
+      const container = document.getElementById('style-buttons');
+      container.innerHTML = templates.map(t => `
+        <button onclick="selectStyle('${t.id}')" 
+          class="text-left px-3 py-2 rounded-lg border transition flex justify-between items-center ${t.id === currentTemplateId ? 'bg-blue-50 border-blue-500 text-blue-900 font-semibold' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'}">
+          <span class="text-xs">${t.name}</span>
+          <span class="text-[11px] text-slate-400">${t.description}</span>
+        </button>
+      `).join('');
+    }
+
+    function selectStyle(id) {
+      currentTemplateId = id;
+      const tpl = templates.find(t => t.id === id);
+      if (tpl) document.getElementById('style-desc').textContent = tpl.description;
+      renderStyleButtons();
+      renderPreview();
+    }
+
+    function getRawFormValues() {
+      const values = {};
+      document.querySelectorAll('.form-input').forEach(el => {
+        values[el.dataset.key] = el.value.trim();
+      });
+      return values;
+    }
+
+    function renderPreview() {
+      const tpl = templates.find(t => t.id === currentTemplateId);
+      if (!tpl) return;
+      const raw = getRawFormValues();
+      renderMode = 'html';
+      document.getElementById('preview-box').innerHTML = tpl.build(buildSemanticContext(raw));
+
+      renderMode = 'plain';
+      const plainText = tpl.build(buildSemanticContext(raw));
+      const words = plainText.split(/\s+/).filter(w => w.length > 0).length;
+      document.getElementById('word-count').textContent = `${words} words`;
+    }
+
+    function copyPlainText() {
+      const tpl = templates.find(t => t.id === currentTemplateId);
+      renderMode = 'plain';
+      const text = tpl.build(buildSemanticContext(getRawFormValues()));
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copy-btn');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<span>✓ 已複製純文字</span>';
+        btn.classList.replace('bg-blue-600', 'bg-emerald-600');
+        setTimeout(() => {
+          btn.innerHTML = orig;
+          btn.classList.replace('bg-emerald-600', 'bg-blue-600');
+        }, 1800);
+      });
+    }
+
+    function appendChip(inputId, text) {
+      const input = document.getElementById(inputId);
+      const current = input.value.trim();
+      if (!current) input.value = text;
+      else if (!current.includes(text)) input.value = `${current}, ${text}`;
+      renderPreview();
+    }
+
+    function setField(inputId, text) {
+      const input = document.getElementById(inputId);
+      input.value = text;
+      renderPreview();
+    }
+
+    function clearAllFields() {
+      document.querySelectorAll('.form-input').forEach(el => {
+        if (el.tagName === 'SELECT') el.selectedIndex = 0;
+        else if (el.dataset.key === 'dest_service') el.value = 'Infectious Diseases';
+        else el.value = '';
+      });
+      renderPreview();
+    }
+
+    function applySyndromePreset(type) {
+      const preset = SYNDROME_PRESETS[type];
+      if (!preset) return;
+
+      const preserveKeys = ['age', 'ed_date', 'admit_date', 'micro_date'];
+      const currentValues = getRawFormValues();
+
+      document.querySelectorAll('.form-input').forEach(el => {
+        const key = el.dataset.key;
+        if (preserveKeys.includes(key) && currentValues[key]) {
+          return;
+        }
+        if (preset[key] !== undefined) {
+          el.value = preset[key];
+        }
+      });
+      renderPreview();
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+  </script>
+</body>
+</html>
